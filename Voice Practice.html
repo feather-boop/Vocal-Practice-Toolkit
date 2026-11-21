@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Voice Practice</title>
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);--teal:#0a7a63;--blue:#3b82f6}
+html{height:100%;scroll-padding-top:env(safe-area-inset-top,0px)}
+body{height:100%;margin:0;background:#000;color:#fff;font-family:system-ui,-apple-system,Roboto,sans-serif;overflow:hidden;-webkit-user-select:none;user-select:none}
+#app{height:100%;display:flex;flex-direction:column}
+.scr{display:none;flex:1;min-height:0;position:relative}
+.scr.on{display:flex;flex-direction:column}
+nav{display:flex;background:#111;border-top:1px solid #333}
+nav button{flex:1;padding:14px;background:none;border:0;color:#888;font-size:16px;font-weight:600}
+nav button.on{color:#fff;box-shadow:inset 0 3px 0 var(--blue)}
+/* tuner */
+#top{padding:14px 18px 6px;background:#000;border-bottom:3px solid #333}
+#bar{position:relative;height:46px;background:#404040;border-radius:10px;overflow:hidden}
+#bar i.t{position:absolute;top:0;bottom:0;width:2px;background:#fff}
+#mk{position:absolute;top:0;bottom:0;width:10%;left:45%;background:#555;transition:left .08s}
+.row{display:flex;justify-content:space-between;align-items:baseline;margin-top:10px;font-size:26px}
+#note{font-size:52px;font-weight:300}
+#cts,#hz{width:34%;color:#eee}#hz{text-align:right}
+#cvw{flex:1;position:relative;min-height:0}
+canvas{position:absolute;inset:0;width:100%;height:100%}
+.fab{position:absolute;right:18px;width:62px;height:62px;border-radius:50%;background:#000;border:3px solid var(--blue);color:var(--blue);font-size:22px;font-weight:700}
+#hint{position:absolute;left:0;right:0;top:40%;text-align:center;color:#888;font-size:18px;pointer-events:none}
+/* metronome */
+#metro{background:#2b2b2b;align-items:center;justify-content:space-between;padding:20px 0 24px}
+#beats{display:flex;gap:16px;margin-top:6vh;flex-wrap:wrap;justify-content:center;padding:0 20px}
+#beats i{width:34px;height:34px;border-radius:50%;background:#1d1d1d;box-shadow:inset 0 2px 4px #000;transition:background .05s}
+#beats i{width:46px;height:46px;border:3px solid transparent;box-sizing:border-box;cursor:pointer}#beats i.s2{border-color:#19b58f}#beats i.s0{opacity:.4;border:3px dashed #777;background:none;box-shadow:none}#beats i.on{background:#bbb}#beats i.s2.on{background:#19b58f;box-shadow:0 0 22px #19b58f}
+.ctl{display:flex;gap:min(8vw,44px)}
+.sq{width:78px;height:78px;border-radius:20px;background:#303030;border:0;color:#999;font-size:30px;font-weight:600;box-shadow:0 6px 12px #0008,inset 0 1px 2px #fff1}
+#tn{font-size:24px;color:#999;margin-top:4px;text-align:center}
+#bp{font-family:Georgia,serif;font-size:76px;line-height:1;text-align:center}
+#bl{font-size:22px;color:#999;text-align:center}
+#dw{position:relative;width:min(62vw,40vh,320px);aspect-ratio:1}
+#dial{position:absolute;inset:0;border-radius:50%;background:repeating-conic-gradient(#555 0 1deg,#222 1deg 6deg);box-shadow:0 8px 20px #0009;touch-action:none}
+#dial::before{content:"";position:absolute;inset:11%;border-radius:50%;background:#333;box-shadow:inset 0 3px 8px #0008,0 0 0 8px #1f1f1f}
+#dial b{position:absolute;width:6%;aspect-ratio:1;border-radius:50%;background:#262626;top:17%;left:50%;margin-left:-3%;z-index:1}
+.bottom{width:100%;display:flex;justify-content:flex-start;padding:0 28px;box-sizing:border-box}
+#pp{width:80px;height:80px;border-radius:22px;background:#111;border:0;color:#fff;font-size:34px;box-shadow:0 6px 12px #0008}
+</style></head><body>
+<div id="app">
+<section class="scr on" id="tuner">
+ <div id="top">
+  <div id="bar"><i class="t" style="left:25%"></i><i class="t" style="left:50%"></i><i class="t" style="left:75%"></i><div id="mk"></div></div>
+  <div class="row"><span id="cts">&nbsp;</span><span id="note">–</span><span id="hz">&nbsp;</span></div>
+ </div>
+ <div id="cvw"><canvas id="cv"></canvas><div id="hint">Tap ▶ and start singing</div>
+  <button class="fab" id="ar" style="bottom:178px;font-size:15px">West</button>
+  <button class="fab" id="nm" style="bottom:100px">Do</button>
+  <button class="fab" id="run" style="bottom:22px">▶</button></div>
+</section>
+<section class="scr" id="metro">
+ <div id="beats"></div>
+ <div class="ctl"><button class="sq" id="sig">4/4</button><button class="sq" id="sub">♩</button><button class="sq" id="tap" style="font-size:24px">Tap</button></div>
+ <div><div id="tn"></div><div id="bp"></div><div id="bl">BPM</div></div>
+ <div id="dw"><div id="dial"><b></b></div></div>
+ <div class="bottom"><button id="pp">▶</button></div>
+</section>
+<nav><button class="on" data-s="tuner">Tuner</button><button data-s="metro">Metronome</button></nav>
+</div>
+<script>
+const $=s=>document.querySelector(s);
+document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{
+ document.querySelectorAll('nav button,.scr').forEach(e=>e.classList.remove('on'));
+ b.classList.add('on');$('#'+b.dataset.s).classList.add('on');resize();});
+let ac;const getAC=()=>ac||(ac=new (window.AudioContext||window.webkitAudioContext)());
+async function wake(){try{await navigator.wakeLock.request('screen')}catch(e){}}
+/* ---------- TUNER ---------- */
+const NL=['C','C♯','D','D♯','E','F','F♯','G','G♯','A','A♯','B'];
+const SOL=['do','do♯','re','re♯','mi','fa','fa♯','sol','sol♯','la','la♯','si'];
+const OCT=['#6b7280','#b08ad6','#7ab8e8','#7fd6c8','#8fd68a','#e5d36b','#e89a6b','#e86b8a','#b0b0b0'];
+const A4=440,SPD=90,SPAN=16;
+let solf=false,arab=false,running=false,an,buf,hist=[],recent=[],vt=0,lastV=-1e9,lo=55,loV=55,cur=null,cv=$('#cv'),g=cv.getContext('2d'),W=0,H=0;
+function resize(){const r=cv.getBoundingClientRect(),d=devicePixelRatio||1;W=r.width;H=r.height;cv.width=W*d;cv.height=H*d;g.setTransform(d,0,0,d,0,0)}
+addEventListener('resize',resize);setTimeout(resize,50);
+$('#nm').onclick=()=>{solf=!solf;$('#nm').textContent=solf?'C':'Do';if(cur)show()};
+$('#ar').onclick=()=>{arab=!arab;$('#ar').textContent=arab?'Arab':'West';if(cur)show()};
+$('#run').onclick=async()=>{
+ if(!running){
+  if(!an){try{const c=getAC();await c.resume();
+   const s=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}});
+   an=c.createAnalyser();an.fftSize=2048;c.createMediaStreamSource(s).connect(an);buf=new Float32Array(2048);
+  }catch(e){$('#hint').textContent='Mic error: '+(e.name||e)+(e.message?' – '+e.message:'');return}}
+  running=true;$('#hint').style.display='none';$('#run').textContent='❚❚';wake();
+ }else{running=false;$('#run').textContent='▶'}};
+function yin(b,sr){const Wn=1024,M=1000;let e=0;for(let i=0;i<Wn;i++)e+=b[i]*b[i];if(e/Wn<1e-5)return -1;
+ const d=new Float32Array(M);let s=0;d[0]=1;
+ for(let t=1;t<M;t++){let x=0;for(let i=0;i<Wn;i++){const v=b[i]-b[i+t];x+=v*v}s+=x;d[t]=x*t/s}
+ for(let t=Math.ceil(sr/1200);t<M-1;t++){if(d[t]<.12){while(t+1<M-1&&d[t+1]<d[t])t++;
+  const a=d[t-1],c=d[t+1],m=d[t],den=a-2*m+c;return sr/(t+(den?(a-c)/(2*den):0))}}return -1}
+const nm=n=>(solf?SOL:NL)[((n%12)+12)%12]+(Math.floor(n/12)-1);
+function qname(m){const g=arab?.5:1,n=Math.round(m/g)*g;if(Number.isInteger(n))return nm(n);const k=Math.floor(n),nat=x=>![1,3,6,8,10].includes(((x%12)+12)%12);return nat(k+1)?nm(k+1)+' ½♭':nm(k)+' ½♯'}
+function show(){const g=arab?.5:1,n=Math.round(cur.m/g)*g,c=(cur.m-n)*100,h=g*50;
+ $('#note').textContent=qname(cur.m);$('#cts').textContent=(c>=0?'+':'')+c.toFixed(1)+'c';$('#hz').textContent=cur.f.toFixed(1)+'Hz';
+ const mk=$('#mk');mk.style.left=(45+Math.max(-h,Math.min(h,c))/h*25)+'%';mk.style.background=Math.abs(c)<12*g?'#22c55e':'#e5484d'}
+const col=c=>{c=Math.abs(c);return c<15?'#4ade80':c<35?'#facc15':'#fb923c'};
+let last=0;
+function frame(now){const dt=Math.min(now-(last||now),100);last=now;
+ if(running&&an){an.getFloatTimeDomainData(buf);const f=yin(buf,getAC().sampleRate);
+  if(f>0){const m=69+12*Math.log2(f/A4);recent.push(m);if(recent.length>3)recent.shift();
+   const mm=[...recent].sort((a,b)=>a-b)[recent.length>>1];lastV=now;cur={m:mm,f};hist.push({t:vt,m:mm});show();
+   if(mm<lo+1||mm>lo+SPAN-1)lo=Math.round(mm-SPAN/2);
+  }else{recent=[];const l=hist[hist.length-1];if(l&&l.m!==null)hist.push({t:vt,m:null})}
+  if(now-lastV<1000)vt+=dt/1000;
+  while(hist.length&&hist[0].t<vt-25)hist.shift();}
+ loV+=(lo-loV)*.12;draw();requestAnimationFrame(frame)}
+function draw(){g.fillStyle='#000';g.fillRect(0,0,W,H);const K=64,y=m=>H-(m-loV+.5)/SPAN*H,px=W-110;
+ for(let k=Math.floor(loV)-1;k<loV+SPAN+1;k++){const nat=![1,3,6,8,10].includes(((k%12)+12)%12),y0=y(k+.5),y1=y(k-.5);
+  g.fillStyle=nat?'#fff':'#0c0c0c';g.fillRect(8,y0+.5,nat?K-8:K*.62,y1-y0-1);
+  g.fillStyle=OCT[Math.max(0,Math.min(8,Math.floor(k/12)-1))];g.fillRect(0,y0,8,y1-y0);
+  const yy=y(k);g.strokeStyle=nat?'#e8e8e8':'#4a4a4a';g.lineWidth=nat?1.5:1;g.beginPath();g.moveTo(K+4,yy);g.lineTo(W,yy);g.stroke();
+  if(arab){g.setLineDash([7,7]);g.strokeStyle='#8a8a8a';g.lineWidth=1;g.beginPath();g.moveTo(K+4,y(k+.5));g.lineTo(W,y(k+.5));g.stroke();g.setLineDash([])}
+  if(nat){g.fillStyle='#fff';g.font='22px system-ui';g.fillText(nm(k),K+10,yy-5)}}
+ g.strokeStyle='#666';g.lineWidth=1;g.beginPath();g.moveTo(px,0);g.lineTo(px,H);g.stroke();
+ g.lineWidth=3;g.lineJoin='round';let p=null,gs=arab?.5:1;
+ for(const s of hist){if(s.m===null){p=null;continue}
+  const x=px-(vt-s.t)*SPD,yy=y(s.m);
+  if(p&&x>K){g.strokeStyle=col((s.m-Math.round(s.m/gs)*gs)*100/gs);g.beginPath();g.moveTo(p.x,p.y);g.lineTo(x,yy);g.stroke()}
+  p={x,y:yy}}}
+requestAnimationFrame(frame);
+/* ---------- METRONOME ---------- */
+const SIGS=[[1,4],[2,4],[3,4],[4,4],[5,4],[6,8]],NV=[{u:2,h:1,f:0,d:0},{u:1,h:0,f:0,d:0},{u:1.5,h:0,f:0,d:1},{u:.5,h:0,f:1,d:0},{u:.25,h:0,f:2,d:0}];
+function noteSVG(n){let s='<svg viewBox="0 0 40 40" width="42" height="42"><ellipse cx="15" cy="30" rx="7.5" ry="5.5" transform="rotate(-20 15 30)" '+(n.h?'fill="none" stroke="currentColor" stroke-width="2.5"':'fill="currentColor"')+'/><path d="M21.6 28V6" stroke="currentColor" stroke-width="2.5" fill="none"/>';for(let i=0;i<n.f;i++)s+='<path d="M21.6 '+(6+i*7)+'c0 6 8 6 8 12" stroke="currentColor" stroke-width="2.5" fill="none"/>';if(n.d)s+='<circle cx="29" cy="31" r="2.3" fill="currentColor"/>';return s+'</svg>'}
+let bpm=92,bf=92,si=3,sb=1,playing=false,nextT=0,bn=0,sn=0,q=[],tid,taps=[];
+function names(b){return b<40?'Grave':b<60?'Largo':b<76?'Adagio':b<92?'Andante':b<108?'Andante moderato':b<120?'Moderato':b<156?'Allegro':b<176?'Vivace':b<200?'Presto':'Prestissimo'}
+let lv=[];
+function tot(){return Math.round(SIGS[si][0]*4/SIGS[si][1]/NV[sb].u*1000)/1000}
+function nb(){return Math.max(1,Math.ceil(tot()))}
+function bw(i){return Math.min(1,tot()-i)}
+function buildBeats(){const n=nb();lv=Array.from({length:n},(_,i)=>i===0?2:1);
+ $('#beats').innerHTML=lv.map((_,i)=>'<i data-i="'+i+'"></i>').join('');paint()}
+function paint(){document.querySelectorAll('#beats i').forEach((e,i)=>{e.classList.remove('s0','s1','s2');e.classList.add('s'+lv[i])})}
+$('#beats').onclick=e=>{const i=e.target.dataset.i;if(i===undefined)return;lv[i]=(lv[i]+2)%3;paint()};
+function ui(){$('#bp').textContent=bpm;$('#tn').textContent=names(bpm*NV[sb].u);$('#sig').textContent=SIGS[si].join('/');$('#sub').innerHTML=noteSVG(NV[sb]);
+ $('#dial').style.transform='rotate('+((bf-30)/210*300-150)+'deg)'}
+function click(t,f,v){const c=getAC(),o=c.createOscillator(),n=c.createGain();o.frequency.value=f;o.connect(n);n.connect(c.destination);
+ n.gain.setValueAtTime(0,t);n.gain.linearRampToValueAtTime(v,t+.002);n.gain.exponentialRampToValueAtTime(.0001,t+.07);o.start(t);o.stop(t+.09)}
+function sched(){const c=getAC();while(nextT<c.currentTime+.12){const main=true;
+ const L=lv[bn];if(main){if(L)click(nextT,L===2?1600:1050,.9);q.push({t:nextT,b:bn})}else if(L)click(nextT,700,.3);
+ nextT+=60/bpm*bw(bn);bn=(bn+1)%lv.length}}
+function start(){const c=getAC();c.resume();bn=0;sn=0;nextT=c.currentTime+.08;q=[];playing=true;sched();tid=setInterval(sched,25);$('#pp').textContent='❚❚';wake()}
+function stop(){playing=false;clearInterval(tid);$('#pp').textContent='▶';document.querySelectorAll('#beats i').forEach(i=>i.classList.remove('on'))}
+$('#pp').onclick=()=>playing?stop():start();
+function vis(){if(playing){const t=getAC().currentTime;while(q.length&&q[0].t<=t){const e=q.shift(),is=document.querySelectorAll('#beats i');
+ is.forEach(i=>i.classList.remove('on'));if(is[e.b]&&lv[e.b])is[e.b].classList.add('on')}}requestAnimationFrame(vis)}
+requestAnimationFrame(function l(){vis();});
+$('#sig').onclick=()=>{si=(si+1)%SIGS.length;bn=0;buildBeats();ui()};
+$('#sub').onclick=()=>{sb=(sb+1)%NV.length;bn=0;buildBeats();ui()};
+$('#tap').onclick=()=>{const n=performance.now();if(taps.length&&n-taps[taps.length-1]>2000)taps=[];taps.push(n);taps=taps.slice(-5);
+ if(taps.length>1){bf=Math.max(30,Math.min(240,60000/((taps[taps.length-1]-taps[0])/(taps.length-1))));bpm=Math.round(bf);ui()}};
+const dial=$('#dial');let la=null;
+const ang=e=>{const r=dial.getBoundingClientRect();return Math.atan2(e.clientY-r.top-r.height/2,e.clientX-r.left-r.width/2)*180/Math.PI};
+dial.onpointerdown=e=>{dial.setPointerCapture(e.pointerId);la=ang(e)};
+dial.onpointermove=e=>{if(la===null)return;const a=ang(e);let d=a-la;if(d>180)d-=360;if(d<-180)d+=360;la=a;
+ bf=Math.max(30,Math.min(240,bf+d*.35));bpm=Math.round(bf);ui()};
+dial.onpointerup=dial.onpointercancel=()=>la=null;
+buildBeats();ui();
+</script></body></html>
